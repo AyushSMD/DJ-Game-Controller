@@ -2,13 +2,31 @@ import rtmidi
 import vgamepad as vg
 import time
 
+# Fine tuning variables
+smoothing_factor = 0.2
+ddj_port_index = 0
+
+# left joystick's x axis
+right_jog_control_touch = 54
+right_jog_status_touch = 145
+right_jog_control_rotatoion = 34
+right_jog_status_rotatoion = 177
+steering_sensitivity = 0.5 
+
+# right trigger
+right_fader_status = 177
+right_fader_control = 19
+
+# right trigger
+left_fader_status = 176
+left_fader_control = 19
+
 # Initialize MIDI input
 midiin = rtmidi.MidiIn()
 ports = midiin.get_ports()
 print("Available MIDI Ports:", ports)
 
 # Select DDJ-RB port (adjust index if needed)
-ddj_port_index = 0
 midiin.open_port(ddj_port_index)
 
 # Initialize virtual gamepad
@@ -21,7 +39,6 @@ touch_active = False
 # Fader smoothing
 last_accel = 0.0
 last_brake = 0.0
-smoothing_factor = 0.2
 
 def handle_midi_message(message, delta_time):
     global touch_active, steering_value, last_accel, last_brake
@@ -29,10 +46,11 @@ def handle_midi_message(message, delta_time):
     msg, _ = message
     status, control, value = msg[0], msg[1], msg[2]
 
-    print (msg)
+    # print (msg) # <-------------------------uncomment this line for the messages 
 
     # --- Steering ---
-    if control == 54 and status == 145:  # Jog touch on/off
+    # Jog touch on/off
+    if control == right_jog_control_touch and status == right_jog_status_touch: 
         touch_active = (value > 0)
         if not touch_active:
             steering_value = 0.0
@@ -40,67 +58,48 @@ def handle_midi_message(message, delta_time):
             gamepad.update()
             print("Touch released -> Centered")
 
-    elif control == 34 and touch_active and status == 177:  # Jog rotation
-        delta = (value - 64) / 64.0  # Normalize rotation delta (-1 to +1)
-        steering_value += delta * 0.5  # Sensitivity
+    # Jog rotation
+    elif control == right_jog_control_rotatoion and touch_active and status == right_jog_status_rotatoion:  
+        delta = (value - 64) / 64.0  
+        steering_value += delta * steering_sensitivity 
         steering_value = max(-1.0, min(1.0, steering_value))
         gamepad.left_joystick_float(x_value_float=steering_value, y_value_float=0.0)
         gamepad.update()
-        print(f"Steering: {steering_value:.2f} Message: {msg}")
+        print(f"Steering: {steering_value:.2f}")
 
     # --- Acceleration ---
-    if control == 19 and status == 177:  # Right fader
+    # Right fader
+    if control == right_fader_control and status == right_fader_status:  
         # Invert fader if top = max acceleration physically
         # value = 127 - value  # comment out if fader already goes 0->bottom,127->top
 
-        # Map fader to acceleration
         accel = value / 127.0
 
-        # Optional brake at bottom
-        # brake = 1.0 if value <= 117 else 0.0
-        # if brake == 1.0:
-        #     accel = 0.0
-
-        # Smoothing to reduce jitter
         if abs(accel - last_accel) < 0.01:
             accel = last_accel  # ignore tiny fluctuations
         accel = last_accel * (1 - smoothing_factor) + accel * smoothing_factor
         last_accel = accel
 
-        # Send to virtual gamepad
         gamepad.right_trigger_float(value_float=accel)
-        # gamepad.left_trigger_float(value_float=brake)
         gamepad.update()
 
-        # Print live values in terminal
         print(f"Accel: {accel:.2f}")
         
 
     # --- Brake ---
-    if control == 19 and status == 176:  # left fader
+    # left fader
+    if control == left_fader_control and status == left_fader_status:  
         brake = value / 127.0
 
-            # Map fader to acceleration
-        
-
-        # Optional brake at bottom
-        # brake = 1.0 if value <= 117 else 0.0
-        # if brake == 1.0:
-        #     accel = 0.0
-
-        # Smoothing to reduce jitter
         if abs(brake - last_brake) < 0.01:
             brake = last_brake  # ignore tiny fluctuations
         brake = last_brake * (1 - smoothing_factor) + brake * smoothing_factor
         last_brake = brake
 
-        # Send to virtual gamepad
         gamepad.left_trigger_float(value_float=1-brake)
-        # gamepad.left_trigger_float(value_float=brake)
         gamepad.update()
 
-        # Print live values in terminal
-        print(f"brake: {brake:.2f}")
+        print(f"brake: {1-brake:.2f}")
 
     # --- Gears ---
     if control == 12 and status == 145:

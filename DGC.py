@@ -17,9 +17,17 @@ steering_sensitivity = 0.5
 right_fader_status = 177
 right_fader_control = 19
 
-# right trigger
+# left trigger
 left_fader_status = 176
 left_fader_control = 19
+
+# gamepad x
+gamepad_x_status = 145
+gamepad_x_control = 12
+
+# gamepad x
+gamepad_b_status = 145
+gamepad_b_control = 11
 
 # Initialize MIDI input
 midiin = rtmidi.MidiIn()
@@ -102,7 +110,8 @@ def handle_midi_message(message, delta_time):
         print(f"brake: {1-brake:.2f}")
 
     # --- Gears ---
-    if control == 12 and status == 145:
+    # right cue button
+    if control == gamepad_x_control and status == gamepad_x_status:
         if value > 0:  # press
             gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_X)
             gamepad.update()
@@ -112,7 +121,8 @@ def handle_midi_message(message, delta_time):
             gamepad.update()
             print("Gear up released")
 
-    if control == 11 and status == 145:
+    # right play/pause button
+    if gamepad_b_control == 11 and gamepad_b_status == 145:
         if value > 0:
             gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_B)
             gamepad.update()
@@ -121,9 +131,6 @@ def handle_midi_message(message, delta_time):
             gamepad.release_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_B)
             gamepad.update()
             print("Gear down released")
-
-
-
 
 # Main loop
 print("Listening for DDJ-RB input... (Ctrl+C to quit)")
